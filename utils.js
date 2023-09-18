@@ -170,22 +170,43 @@ module.exports.decodeRecordRealTimeLog18 = (recordData)=>{
     return {userId , attTime}
 }
 
-module.exports.decodeRecordRealTimeLog52 =(recordData)=>{
-  const payload = removeTcpHeader(recordData)
-        
-  const recvData = payload.subarray(8)
-
-  const userId = recvData.slice(0 , 9)
-  .toString('ascii')
-  .split('\0')
-  .shift()
-  
-
-  const attTime = parseHexToTime(recvData.subarray(26,26+6))
-
-  return { userId, attTime}
-
+function mapVerifyType(verifyType) {
+  switch (verifyType) {
+    case 'ff00':
+      return "Password";
+    case 1:
+      return "Fingerprint";
+    case 2:
+      return "RF card";
+    default:
+      return "Unknown"; // You can change this to handle other values if needed
+  }
 }
+
+module.exports.decodeRecordRealTimeLog52 = (recordData) => {
+  const payload = removeTcpHeader(recordData);
+  const recvData = payload.subarray(8);
+  
+  console.log("DATA: ", recvData);
+  
+  const userId = recvData.slice(0, 9)
+    .toString('ascii')
+    .split('\0')
+    .shift();
+    
+  const verificationTypeBuffer = recvData.slice(24, 26); // Extract 2 bytes for verification type
+  const verifyType = verificationTypeBuffer.readUInt16LE(0); // Read as little-endian 16-bit unsigned integer
+    
+  // const verifyType = recvData.readUInt32LE(24, 2).toString(16); // Assuming it's a 16-bit little-endian value
+  
+  const attTime = parseHexToTime(recvData.subarray(26, 26 + 6));
+  
+  // Map verifyType to a human-readable description
+  // const verifyTypeDescription = mapVerifyType(verifyType);
+
+  return { userId, verifyType, attTime };
+}
+
 
 module.exports.decodeUDPHeader = (header)=> {
     const commandId = header.readUIntLE(0,2)
@@ -203,7 +224,6 @@ module.exports.decodeTCPHeader = (header) => {
     const sessionId = recvData.readUIntLE(4,2)
     const replyId = recvData.readUIntLE(6,2)
     return { commandId , checkSum , sessionId , replyId , payloadSize }
-
 }
 
 
